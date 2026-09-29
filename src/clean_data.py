@@ -234,8 +234,10 @@ final_candidates["created"] = pd.to_datetime(
 )
 
 final_candidates["salary_mid"] = (
-    final_candidates["salary_min"] + final_candidates["salary_max"]
+    final_candidates["salary_min"]
+    + final_candidates["salary_max"]
 ) / 2
+
 
 def classify_role(title):
     title = title.lower()
@@ -254,26 +256,20 @@ def classify_role(title):
         return "Technology Graduate"
 
 
-final_candidates["role_category"] = final_candidates["title"].apply(
-    classify_role
-)
+final_candidates["role_category"] = final_candidates[
+    "title"
+].apply(classify_role)
 
-print(
-    final_candidates[
-        ["title", "company", "role_category"]
-    ].to_string(index=False)
-)
-
-technology_roles = final_candidates[
-    final_candidates["role_category"] == "Technology Graduate"
-]
 
 def classify_working_arrangement(description):
     description = description.lower()
 
     if "hybrid" in description:
         return "Hybrid"
-    elif "fully remote" in description or "remote working" in description:
+    elif (
+        "fully remote" in description
+        or "remote working" in description
+    ):
         return "Remote"
     elif (
         "on-site" in description
@@ -289,37 +285,89 @@ final_candidates["working_arrangement"] = final_candidates[
     "description"
 ].apply(classify_working_arrangement)
 
-print(
-    final_candidates[
-        ["title", "company", "working_arrangement"]
-    ].to_string(index=False)
-)
+technology_patterns = {
+    "Python": r"\bpython\b",
+    "SQL": r"\bsql\b",
+    "Power BI": r"\bpower\s*bi\b",
+    "Excel": r"\bexcel\b",
+    "Java": r"\bjava\b",
+    "JavaScript": r"\bjavascript\b",
+    "C#": r"\bc#",
+    "React": r"\breact\b",
+    "AWS": r"\baws\b",
+    "Azure": r"\bazure\b",
+    "Docker": r"\bdocker\b",
+    "Git": r"\bgit\b",
+    "Linux": r"\blinux\b",
+    "Machine Learning": r"\bmachine learning\b",
+    "Tableau": r"\btableau\b",
+    "Spark": r"\bspark\b",
+}
 
-print("\nWorking arrangement counts:")
-print(final_candidates["working_arrangement"].value_counts())
 
-print("\nFinal candidates:", len(final_candidates))
+def extract_technologies(description):
+    technologies = []
 
-skill_keywords = [
-    "python",
-    "sql",
-    "power bi",
-    "excel",
-    "java",
-    "javascript",
-    "c#",
-    "react",
-    "aws",
-    "azure",
-    "docker",
-    "git",
-    "linux",
-    "machine learning",
-    "tableau",
-    "spark",
+    for technology, pattern in technology_patterns.items():
+        if pd.Series([description]).str.contains(
+            pattern,
+            case=False,
+            regex=True
+        ).iloc[0]:
+            technologies.append(technology)
+
+    return technologies
+
+
+final_candidates["technologies"] = final_candidates[
+    "description"
+].apply(extract_technologies)
+
+final_columns = [
+    "id",
+    "title",
+    "role_category",
+    "company",
+    "location",
+    "salary_min",
+    "salary_max",
+    "salary_mid",
+    "salary_is_predicted",
+    "working_arrangement",
+    "technologies",
+    "contract_type",
+    "contract_time",
+    "created",
+    "category",
+    "description",
+    "redirect_url",
+    "latitude",
+    "longitude",
+    "inclusion_reason",
 ]
 
-for _, job in final_candidates.iterrows():
-    print("\nTITLE:", job["title"])
-    print("COMPANY:", job["company"])
-    print("DESCRIPTION:", job["description"])
+clean_df = final_candidates[final_columns].copy()
+
+clean_df.to_csv(
+    "data/processed/jobs_clean.csv",
+    index=False
+)
+
+print("Rows:", len(clean_df))
+print("Duplicate IDs:", clean_df["id"].duplicated().sum())
+print("Missing titles:", clean_df["title"].isna().sum())
+print("Missing companies:", clean_df["company"].isna().sum())
+print("Missing salaries:", clean_df["salary_mid"].isna().sum())
+print(
+    "Invalid salary ranges:",
+    (clean_df["salary_min"] > clean_df["salary_max"]).sum()
+)
+
+print("\nRole categories:")
+print(clean_df["role_category"].value_counts())
+
+print("\nWorking arrangements:")
+print(clean_df["working_arrangement"].value_counts())
+
+print("\nSalary summary:")
+print(clean_df["salary_mid"].describe())
