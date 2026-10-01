@@ -35,7 +35,7 @@ for search_term in search_terms:
     for page in range(1, 4):
         url = f"https://api.adzuna.com/v1/api/jobs/gb/search/{page}"
 
-        response = requests.get(url, params=params, timeput=30)
+        response = requests.get(url, params=params, timeout=30)
         response.raise_for_status()
         data = response.json()
 
